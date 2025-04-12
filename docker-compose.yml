@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=your_secure_jwt_secret_change_this
+      - JWT_EXPIRES_IN=90d
+      - JWT_COOKIE_EXPIRES_IN=90
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - temp:/app/temp
+    restart: unless-stopped
+    privileged: true
+
+  cppcheck:
+    image: pipelinecomponents/cppcheck:latest
+    volumes:
+      - temp:/code
+    command: ["sleep", "infinity"]
+
+volumes:
+  temp: 

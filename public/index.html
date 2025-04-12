@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online C++ Compiler</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <h1>Online C++ Compiler</h1>
+        </div>
+        <nav>
+            <ul class="nav-links">
+                <li><button id="run-btn"><i class="fas fa-play"></i> Run</button></li>
+                <li>
+                    <select id="cpp-version">
+                        <option value="cpp98">C++98</option>
+                        <option value="cpp11">C++11</option>
+                        <option value="cpp14">C++14</option>
+                        <option value="cpp17" selected>C++17</option>
+                        <option value="cpp20">C++20</option>
+                    </select>
+                </li>
+                <li id="user-info">
+                    <span id="username-display">Guest</span>
+                    <button id="login-btn">Login</button>
+                    <button id="register-btn">Register</button>
+                    <button id="logout-btn" class="hidden">Logout</button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main>
+        <div class="code-container">
+            <div class="code-header">
+                <div class="file-info">
+                    <input type="text" id="code-title" placeholder="Untitled Code">
+                    <button id="save-btn" title="Save Code"><i class="fas fa-save"></i></button>
+                </div>
+                <div class="my-codes">
+                    <button id="my-codes-btn">My Codes</button>
+                </div>
+            </div>
+            <textarea id="code-editor">#include <iostream>
+
+int main() {
+    std::cout << "Hello, World!" << std::endl;
+    return 0;
+}</textarea>
+        </div>
+        
+        <div class="io-container">
+            <div class="input-section">
+                <div class="section-header">
+                    <h3>Input</h3>
+                </div>
+                <textarea id="input" placeholder="Enter input for your program"></textarea>
+            </div>
+            
+            <div class="output-section">
+                <div class="section-header">
+                    <h3>Output</h3>
+                    <button id="clear-output-btn" title="Clear Output"><i class="fas fa-trash"></i></button>
+                </div>
+                <div id="output"></div>
+            </div>
+        </div>
+    </main>
+    
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+    
+    <div id="my-codes-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>My Saved Codes</h2>
+            <div id="codes-list"></div>
+        </div>
+    </div>
+    
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Login</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="register-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Register</h2>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="register-username">Username</label>
+                    <input type="text" id="register-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-email">Email</label>
+                    <input type="email" id="register-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <input type="password" id="register-password" required>
+                </div>
+                <button type="submit">Register</button>
+            </form>
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2025 Online C++ Compiler. All rights reserved.</p>
+    </footer>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/anyword-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
+    <script src="js/cpp-keywords.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html> 
