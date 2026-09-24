@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Compile and run C++ programs in an isolated sandbox." />
+    <title>OC-1 Compiler Bench</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script src="/theme-boot.js"></script>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <div class="bench">
+      <header class="plate">
+        <div class="brand">
+          <span class="brand-model">OC-1</span>
+          <span class="brand-name">Compiler Bench</span>
+        </div>
+
+        <div class="leds" id="status-leds" aria-label="Execution status">
+          <span class="led" data-led="compile"><i aria-hidden="true"></i>Compile</span>
+          <span class="led" data-led="run"><i aria-hidden="true"></i>Run</span>
+          <span class="led" data-led="tle" title="Time limit exceeded"><i aria-hidden="true"></i>TLE</span>
+          <span class="led" data-led="mle" title="Memory limit exceeded"><i aria-hidden="true"></i>MLE</span>
+          <span class="led" data-led="out" title="Output limit exceeded"><i aria-hidden="true"></i>Out</span>
+        </div>
+
+        <div class="plate-controls">
+          <div class="theme-switch" id="theme-switch" role="radiogroup" aria-label="Screen theme"></div>
+          <button type="button" class="key" id="snippets-button">Snippets</button>
+          <button type="button" class="key" id="account-button">Log in</button>
+        </div>
+      </header>
+
+      <main class="deck">
+        <section class="screen editor-screen" aria-label="Source code">
+          <div class="screen-tag editor-tag">
+            <label class="visually-hidden" for="title-input">Snippet title</label>
+            <input id="title-input" type="text" maxlength="100" spellcheck="false" autocomplete="off" />
+            <span class="dirty-dot" id="dirty-dot" title="Unsaved changes" hidden></span>
+          </div>
+          <div class="editor-host" id="editor"></div>
+        </section>
+
+        <aside class="modules">
+          <section class="module" aria-labelledby="standard-heading">
+            <h2 id="standard-heading">Standard</h2>
+            <div class="dial" id="standard-dial"></div>
+          </section>
+
+          <section class="module" aria-labelledby="limits-heading">
+            <h2 id="limits-heading">Limits</h2>
+            <div class="meters" id="meters"></div>
+          </section>
+
+          <section class="module run-module" aria-label="Controls">
+            <dl class="readouts">
+              <div><dt>Source</dt><dd id="source-size">0 B</dd></div>
+              <div><dt>Stdin</dt><dd id="stdin-size">0 B</dd></div>
+            </dl>
+            <div class="run-controls">
+              <button type="button" class="key key-wide" id="save-button">Save <kbd>Ctrl S</kbd></button>
+              <button type="button" class="run-button" id="run-button" aria-keyshortcuts="Control+Enter Meta+Enter">
+                <span>Run</span>
+              </button>
+            </div>
+          </section>
+        </aside>
+
+        <section class="screen stdin-screen">
+          <label class="screen-tag" for="stdin">Stdin</label>
+          <textarea id="stdin" spellcheck="false" autocomplete="off" placeholder="Program input"></textarea>
+        </section>
+
+        <section class="screen output-screen" aria-labelledby="output-tag">
+          <span class="screen-tag" id="output-tag">Output</span>
+          <div class="output" id="output" tabindex="0" aria-live="polite"></div>
+        </section>
+      </main>
+
+      <footer class="message-strip">
+        <span class="strip-label">Msg</span>
+        <span class="strip-text" id="message-strip" role="status" aria-live="polite"></span>
+        <span class="strip-hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> run</span>
+      </footer>
+    </div>
+
+    <dialog class="panel-dialog" id="auth-dialog" aria-labelledby="auth-title">
+      <form method="dialog" class="dialog-body" id="auth-form" novalidate>
+        <header class="dialog-head">
+          <h2 id="auth-title">Operator access</h2>
+          <button type="button" class="icon-key" data-close aria-label="Close">×</button>
+        </header>
+        <div class="segmented" role="tablist" aria-label="Access mode">
+          <button type="button" role="tab" id="auth-tab-login" data-mode="login" aria-selected="true">Log in</button>
+          <button type="button" role="tab" id="auth-tab-register" data-mode="register" aria-selected="false">Register</button>
+        </div>
+        <p class="dialog-note" id="auth-note" hidden></p>
+        <div class="field" id="username-field" hidden>
+          <label for="auth-username">Username</label>
+          <input id="auth-username" name="username" type="text" autocomplete="username" minlength="3" maxlength="32" />
+        </div>
+        <div class="field">
+          <label for="auth-email">Email</label>
+          <input id="auth-email" name="email" type="email" autocomplete="email" required />
+        </div>
+        <div class="field">
+          <label for="auth-password">Password</label>
+          <input id="auth-password" name="password" type="password" autocomplete="current-password" required />
+          <small id="password-hint" hidden>At least 8 characters.</small>
+        </div>
+        <p class="form-error" id="auth-error" role="alert" hidden></p>
+        <button type="submit" class="key key-primary" id="auth-submit">Log in</button>
+      </form>
+    </dialog>
+
+    <dialog class="panel-dialog wide" id="snippets-dialog" aria-labelledby="snippets-title">
+      <div class="dialog-body">
+        <header class="dialog-head">
+          <h2 id="snippets-title">Snippet index</h2>
+          <button type="button" class="icon-key" data-close aria-label="Close">×</button>
+        </header>
+        <div class="snippet-toolbar">
+          <span id="snippet-count"></span>
+          <button type="button" class="key" id="new-snippet-button">New snippet</button>
+        </div>
+        <ul class="snippet-list" id="snippet-list"></ul>
+      </div>
+    </dialog>
+  </body>
+</html>
