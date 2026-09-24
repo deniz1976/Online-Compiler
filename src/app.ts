@@ -12,6 +12,7 @@ import { createApiRouter } from './http/routes/api.router';
 
 const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
 const JSON_BODY_LIMIT = '256kb';
+const HEALTH_PATH = '/api/health';
 
 export function createApp(dependencies: AppDependencies): Express {
   const { config, logger } = dependencies;
@@ -20,7 +21,7 @@ export function createApp(dependencies: AppDependencies): Express {
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
 
-  app.use(pinoHttp({ logger }));
+  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === HEALTH_PATH } }));
   app.use(
     helmet({
       contentSecurityPolicy: {
