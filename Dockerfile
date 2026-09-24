@@ -7,6 +7,7 @@ RUN npm ci
 
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
+COPY web ./web
 RUN npm run build && npm prune --omit=dev
 
 
@@ -22,7 +23,7 @@ COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --chown=node:node package.json ./
-COPY --chown=node:node public ./public
+COPY --from=build --chown=node:node /app/public ./public
 
 USER node
 

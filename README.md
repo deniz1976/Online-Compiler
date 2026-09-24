@@ -6,6 +6,9 @@ A web-based C++ playground. Users write code in the browser, run it against cust
 
 - Compile and run C++98 through C++23 with custom standard input
 - Clear result classification: success, compilation error, runtime error, time limit, memory limit and output limit
+- Measured wall time, CPU time, peak memory and compile time for every run, shown against the sandbox limits
+- Instrument-panel editor with five screen themes, each with its own syntax palette
+- Compiler errors underlined in the editor, with clickable diagnostics in the output
 - Account registration and login with argon2id password hashing and JWT sessions
 - Personal snippet library backed by MongoDB
 - OpenAPI documentation served at `/api-docs`
@@ -30,13 +33,26 @@ src/
 ├── app.ts              Express application factory
 ├── container.ts        Composition root wiring concrete implementations
 └── server.ts           Process entry point with graceful shutdown
+
+web/                    Browser client (Vite, TypeScript, CodeMirror 6)
+├── index.html
+└── src/
+    ├── api/            Typed HTTP client sharing domain types with the server
+    ├── domain/         Formatting, result presentation, compiler diagnostics
+    ├── editor/         CodeMirror setup, C++ completions, theme-driven highlighting
+    ├── state/          Minimal store and local draft persistence
+    ├── theme/          Screen themes
+    ├── ui/             Panel components: standard dial, meters, LEDs, dialogs
+    └── styles/         Theme tokens and layout
+
+sandbox/                Sandbox image: gcc plus the oc-runner metering helper
 ```
 
 Dependencies point inwards: services depend only on domain types and interfaces, while MongoDB and Docker live behind those interfaces in `infrastructure/`. The HTTP layer receives its services through `createApp`, which keeps the application fully testable with in-memory implementations.
 
 ## Execution sandbox
 
-Every execution runs in its own container, created from `SANDBOX_IMAGE` and removed afterwards:
+Every execution runs in its own container, created from `SANDBOX_IMAGE` and removed afterwards. The image is built from [`sandbox/`](sandbox) and adds `oc-runner`, a small static helper that runs the compiled program, enforces the time limit and reports wall time, CPU time and peak memory.
 
 | Control | Setting |
 | --- | --- |
@@ -63,12 +79,14 @@ All endpoints are under `/api`. Successful responses use `{ "data": ... }` and e
 | POST | `/auth/register` | | Create an account |
 | POST | `/auth/login` | | Start a session (HttpOnly cookie, token also returned for API clients) |
 | POST | `/auth/logout` | | Clear the session cookie |
+| GET | `/auth/session` | | Current user, or `null` when signed out |
 | GET | `/auth/me` | ✓ | Current user |
 | GET | `/snippets` | ✓ | List own snippets |
 | POST | `/snippets` | ✓ | Create a snippet |
 | GET | `/snippets/:id` | ✓ | Get a snippet |
 | PATCH | `/snippets/:id` | ✓ | Update title, source or standard |
 | DELETE | `/snippets/:id` | ✓ | Delete a snippet |
+| GET | `/executions/limits` | | Sandbox limits and supported standards |
 | POST | `/executions` | ✓ | Compile and run `{ source, stdin?, standard? }` |
 
 Authenticated requests accept either the `token` cookie or an `Authorization: Bearer <token>` header.
@@ -87,7 +105,7 @@ Configuration is read from environment variables and validated at startup. See [
 | `MONGODB_URI` | required | MongoDB connection string |
 | `JWT_SECRET` | required | At least 32 characters |
 | `JWT_EXPIRES_IN_SECONDS` | `86400` | Session lifetime |
-| `SANDBOX_IMAGE` | `gcc:14` | Compiler image |
+| `SANDBOX_IMAGE` | `online-compiler-sandbox:gcc14` | Sandbox image built from `sandbox/` |
 | `SANDBOX_RUNTIME` | empty | Container runtime, for example `runsc` |
 | `SANDBOX_MAX_CONCURRENCY` | `4` | Parallel executions |
 | `SANDBOX_MAX_QUEUE` | `32` | Waiting executions before returning 503 |
@@ -107,20 +125,24 @@ Requirements: Node.js 20.12+, Docker and a MongoDB instance.
 ```bash
 npm install
 cp .env.example .env
+npm run sandbox:build
 docker run -d --name mongo -p 27017:27017 mongo:8
 npm run dev
+npm run dev:web
 ```
 
-The server loads `.env` automatically, pulls the sandbox image if it is missing and serves the frontend at http://localhost:3000.
+The API runs on http://localhost:3000 and loads `.env` automatically. The Vite dev server on http://localhost:5173 serves the client with hot reload and proxies `/api` to the API. After `npm run build`, the API serves the built client itself.
 
 | Script | Purpose |
 | --- | --- |
-| `npm run dev` | Start with automatic reload |
-| `npm run build` | Compile to `dist/` |
+| `npm run dev` | API with automatic reload |
+| `npm run dev:web` | Client dev server with hot reload |
+| `npm run build` | Compile the API to `dist/` and the client to `public/` |
 | `npm start` | Run the compiled server |
+| `npm run sandbox:build` | Build the sandbox image |
 | `npm run lint` | ESLint |
-| `npm run typecheck` | TypeScript without emitting |
-| `npm test` | Unit and API tests |
+| `npm run typecheck` | TypeScript for the API and the client |
+| `npm test` | Unit, API and client tests |
 
 ### Tests
 
@@ -128,13 +150,13 @@ The server loads `.env` automatically, pulls the sandbox image if it is missing 
 
 ```bash
 MONGODB_TEST_URI=mongodb://localhost:27017/online-compiler-test \
-SANDBOX_TEST_IMAGE=gcc:14 \
+SANDBOX_TEST_IMAGE=online-compiler-sandbox:gcc14 \
 npm test
 ```
 
 ## Deployment
 
-`docker-compose.yml` runs the application together with MongoDB. The application container talks to the host Docker daemon to create sandboxes, so it runs as a non-root user that only belongs to the Docker socket group, with a read-only filesystem and no capabilities.
+`docker-compose.yml` builds the sandbox image and runs the application together with MongoDB. The application container talks to the host Docker daemon to create sandboxes, so it runs as a non-root user that only belongs to the Docker socket group, with a read-only filesystem and no capabilities.
 
 ```bash
 export JWT_SECRET="$(openssl rand -base64 48)"
