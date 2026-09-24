@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sandbox:build": "docker build -t online-compiler-sandbox:gcc14 sandbox"
   },
   "repository": {
     "type": "git",

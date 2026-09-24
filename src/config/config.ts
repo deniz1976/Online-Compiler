@@ -31,7 +31,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters long'),
   JWT_EXPIRES_IN_SECONDS: positiveInt(86400),
 
-  SANDBOX_IMAGE: z.string().min(1).default('gcc:14'),
+  SANDBOX_IMAGE: z.string().min(1).default('online-compiler-sandbox:gcc14'),
   SANDBOX_RUNTIME: optionalString,
   SANDBOX_MAX_CONCURRENCY: positiveInt(4),
   SANDBOX_MAX_QUEUE: z.coerce.number().int().min(0).default(32),

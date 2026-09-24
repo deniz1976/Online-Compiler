@@ -23,8 +23,22 @@ export interface ExecutionResult {
   stdout: string;
   stderr: string;
   exitCode: number | null;
-  durationMs: number | null;
+  metrics: ExecutionMetrics;
 }
+
+export interface ExecutionMetrics {
+  compileMs: number | null;
+  wallMs: number | null;
+  cpuMs: number | null;
+  memoryKb: number | null;
+}
+
+export const EMPTY_METRICS: ExecutionMetrics = {
+  compileMs: null,
+  wallMs: null,
+  cpuMs: null,
+  memoryKb: null,
+};
 
 export interface CodeRunner {
   run(request: ExecutionRequest): Promise<ExecutionResult>;

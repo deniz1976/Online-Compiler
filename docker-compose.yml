@@ -12,7 +12,7 @@ services:
       MONGODB_URI: mongodb://mongo:27017/online-compiler
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
       JWT_EXPIRES_IN_SECONDS: ${JWT_EXPIRES_IN_SECONDS:-86400}
-      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-gcc:14}
+      SANDBOX_IMAGE: online-compiler-sandbox:gcc14
       SANDBOX_RUNTIME: ${SANDBOX_RUNTIME:-}
       SANDBOX_MAX_CONCURRENCY: ${SANDBOX_MAX_CONCURRENCY:-4}
       SANDBOX_MAX_QUEUE: ${SANDBOX_MAX_QUEUE:-32}
@@ -30,7 +30,16 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+      sandbox-image:
+        condition: service_completed_successfully
     restart: unless-stopped
+
+  sandbox-image:
+    build: ./sandbox
+    image: online-compiler-sandbox:gcc14
+    entrypoint: ["true"]
+    network_mode: none
+    restart: "no"
 
   mongo:
     image: mongo:8

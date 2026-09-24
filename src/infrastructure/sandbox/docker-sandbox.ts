@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import type { Logger } from 'pino';
+import { z } from 'zod';
 import type { SandboxConfig } from '../../config/config';
 import type { CppStandard } from '../../domain/cpp';
-import type {
-  CodeRunner,
-  ExecutionRequest,
-  ExecutionResult,
-  ExecutionStatus,
+import {
+  EMPTY_METRICS,
+  type CodeRunner,
+  type ExecutionRequest,
+  type ExecutionResult,
+  type ExecutionStatus,
 } from '../../domain/execution';
 import type { CommandResult, CommandRunner } from '../process/command-runner';
 
@@ -16,14 +18,28 @@ const SANDBOX_LABEL = 'online-compiler.sandbox';
 const WORKDIR = '/sandbox';
 const SOURCE_FILE = 'main.cpp';
 const BINARY_FILE = 'main';
+const RUNNER = 'oc-runner';
+const REPORT_PATH = '/tmp/oc-report.json';
 const SANDBOX_USER = '65534:65534';
 const KILLED_EXIT_CODE = 137;
+const SIGKILL = 9;
 const HOST_TIMEOUT_GRACE_MS = 2000;
 const CONTAINER_LIFETIME_GRACE_SECONDS = 60;
 const DOCKER_COMMAND_TIMEOUT_MS = 30_000;
 const IMAGE_PULL_TIMEOUT_MS = 10 * 60_000;
 const OOM_COUNTER_FILES = ['/sys/fs/cgroup/memory.events', '/sys/fs/cgroup/memory/memory.oom_control'];
 const OOM_KILL_PATTERN = /^oom_kill\s+(\d+)$/m;
+
+const runReportSchema = z.object({
+  timedOut: z.boolean(),
+  exitCode: z.number().int(),
+  signal: z.number().int(),
+  wallMs: z.number().nonnegative(),
+  cpuMs: z.number().nonnegative(),
+  maxRssKb: z.number().nonnegative(),
+});
+
+type RunReport = z.infer<typeof runReportSchema>;
 
 export class SandboxError extends Error {
   constructor(message: string, readonly result?: CommandResult) {
@@ -53,6 +69,7 @@ export class DockerSandbox implements CodeRunner {
 
       const compilation = await this.compile(container, request.standard);
       const compileOutput = compilation.stderr + compilation.stdout;
+      const compileMs = compilation.durationMs;
 
       if (compilation.exitCode !== 0) {
         return {
@@ -61,19 +78,25 @@ export class DockerSandbox implements CodeRunner {
           stdout: '',
           stderr: '',
           exitCode: compilation.exitCode,
-          durationMs: null,
+          metrics: { ...EMPTY_METRICS, compileMs },
         };
       }
 
       const execution = await this.execute(container, request.stdin);
+      const report = await this.readReport(container, execution);
 
       return {
-        status: await this.classify(container, execution),
+        status: await this.classify(container, execution, report),
         compileOutput,
         stdout: execution.stdout,
         stderr: execution.stderr,
-        exitCode: execution.exitCode,
-        durationMs: execution.durationMs,
+        exitCode: report?.exitCode ?? execution.exitCode,
+        metrics: {
+          compileMs,
+          wallMs: report?.wallMs ?? null,
+          cpuMs: report?.cpuMs ?? null,
+          memoryKb: report?.maxRssKb ?? null,
+        },
       };
     } finally {
       await this.removeContainers([container]);
@@ -175,37 +198,60 @@ export class DockerSandbox implements CodeRunner {
         'exec',
         '--interactive',
         container,
-        'timeout',
-        '--signal=KILL',
-        toSeconds(runTimeoutMs),
+        RUNNER,
+        String(runTimeoutMs),
+        REPORT_PATH,
         `${WORKDIR}/${BINARY_FILE}`,
       ],
       { stdin, timeoutMs: runTimeoutMs + HOST_TIMEOUT_GRACE_MS, maxOutputBytes },
     );
   }
 
-  private async classify(container: string, result: CommandResult): Promise<ExecutionStatus> {
-    if (result.outputLimitExceeded) {
+  private async readReport(container: string, execution: CommandResult): Promise<RunReport | null> {
+    if (execution.timedOut || execution.outputLimitExceeded) {
+      return null;
+    }
+
+    const result = await this.docker(['exec', container, 'cat', REPORT_PATH], {
+      timeoutMs: DOCKER_COMMAND_TIMEOUT_MS,
+    });
+
+    if (result.exitCode !== 0) {
+      return null;
+    }
+
+    try {
+      return runReportSchema.parse(JSON.parse(result.stdout));
+    } catch {
+      this.logger.warn({ container }, 'Sandbox produced an unreadable run report');
+      return null;
+    }
+  }
+
+  private async classify(
+    container: string,
+    execution: CommandResult,
+    report: RunReport | null,
+  ): Promise<ExecutionStatus> {
+    if (execution.outputLimitExceeded) {
       return 'output_limit_exceeded';
     }
 
-    if (result.timedOut) {
+    if (execution.timedOut || report?.timedOut) {
       return 'time_limit_exceeded';
     }
 
-    if (result.exitCode === 0) {
+    if (execution.exitCode === 0) {
       return 'success';
     }
 
-    if (result.exitCode !== KILLED_EXIT_CODE) {
-      return 'runtime_error';
-    }
+    const killed = report ? report.signal === SIGKILL : execution.exitCode === KILLED_EXIT_CODE;
 
-    if (await this.wasOomKilled(container)) {
+    if (killed && (await this.wasOomKilled(container))) {
       return 'memory_limit_exceeded';
     }
 
-    return result.durationMs >= this.config.runTimeoutMs ? 'time_limit_exceeded' : 'runtime_error';
+    return 'runtime_error';
   }
 
   private async wasOomKilled(container: string): Promise<boolean> {
@@ -241,7 +287,10 @@ export class DockerSandbox implements CodeRunner {
 
     this.logger.info({ image }, 'Pulling sandbox image');
     const pull = await this.docker(['pull', image], { timeoutMs: IMAGE_PULL_TIMEOUT_MS });
-    this.assertSucceeded(pull, `Failed to pull sandbox image ${image}`);
+    this.assertSucceeded(
+      pull,
+      `Sandbox image ${image} is not available. Build it with "npm run sandbox:build" or point SANDBOX_IMAGE to a published image`,
+    );
   }
 
   private async removeOrphanedContainers(): Promise<void> {

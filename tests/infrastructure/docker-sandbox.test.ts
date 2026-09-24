@@ -36,6 +36,9 @@ describe.skipIf(!image)('DockerSandbox with a real Docker daemon', () => {
     );
 
     expect(result).toMatchObject({ status: 'success', stdout: '42', exitCode: 0 });
+    expect(result.metrics.wallMs).toEqual(expect.any(Number));
+    expect(result.metrics.memoryKb).toBeGreaterThan(0);
+    expect(result.metrics.compileMs).toBeGreaterThan(0);
   });
 
   it('reports compilation errors', async () => {
@@ -57,6 +60,7 @@ describe.skipIf(!image)('DockerSandbox with a real Docker daemon', () => {
     );
 
     expect(result.status).toBe('memory_limit_exceeded');
+    expect(result.metrics.memoryKb).toBeGreaterThan(100 * 1024);
   });
 
   it('enforces the output limit', async () => {

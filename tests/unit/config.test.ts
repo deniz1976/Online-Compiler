@@ -9,7 +9,7 @@ describe('loadConfig', () => {
     expect(config.port).toBe(3000);
     expect(config.corsOrigins).toEqual([]);
     expect(config.sandbox).toMatchObject({
-      image: 'gcc:14',
+      image: 'online-compiler-sandbox:gcc14',
       runtime: undefined,
       maxConcurrency: 4,
       runTimeoutMs: 3000,

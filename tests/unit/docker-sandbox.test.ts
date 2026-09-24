@@ -42,7 +42,7 @@ class ScriptedCommandRunner implements CommandRunner {
 }
 
 const config: SandboxConfig = {
-  image: 'gcc:14',
+  image: 'online-compiler-sandbox:gcc14',
   runtime: undefined,
   maxConcurrency: 1,
   maxQueue: 0,
@@ -59,7 +59,20 @@ const request = { source: 'int main() {}', stdin: '1 2', standard: 'c++20' as co
 
 const isCompile = (args: readonly string[]) => args.includes('g++');
 const isRun = (args: readonly string[]) => args.includes('/sandbox/main');
-const isOomCheck = (args: readonly string[]) => args.includes('cat') && args[0] === 'exec';
+const isReportRead = (args: readonly string[]) => args.includes('/tmp/oc-report.json') && args.includes('cat');
+const isOomCheck = (args: readonly string[]) => args.includes('/sys/fs/cgroup/memory.events');
+
+const report = (overrides: Record<string, unknown> = {}) => ({
+  stdout: JSON.stringify({
+    timedOut: false,
+    exitCode: 0,
+    signal: 0,
+    wallMs: 42,
+    cpuMs: 40,
+    maxRssKb: 3300,
+    ...overrides,
+  }),
+});
 
 function createSandbox(responder?: Responder, overrides: Partial<SandboxConfig> = {}) {
   const commands = new ScriptedCommandRunner(responder);
@@ -118,10 +131,29 @@ describe('DockerSandbox', () => {
     expect(commands.find(isCompile)?.args).toContain('-std=c++20');
   });
 
-  it('returns program output on success and removes the container', async () => {
-    const { commands, sandbox } = createSandbox((args) =>
-      isRun(args) ? { stdout: '3\n', durationMs: 42 } : undefined,
-    );
+  it('runs the program through the metering runner with the run time limit', async () => {
+    const { commands, sandbox } = createSandbox();
+
+    await sandbox.run(request);
+
+    expect(commands.find(isRun)?.args.slice(-4)).toEqual([
+      'oc-runner',
+      '3000',
+      '/tmp/oc-report.json',
+      '/sandbox/main',
+    ]);
+  });
+
+  it('returns program output and metrics on success and removes the container', async () => {
+    const { commands, sandbox } = createSandbox((args) => {
+      if (isCompile(args)) {
+        return { durationMs: 812 };
+      }
+      if (isRun(args)) {
+        return { stdout: '3\n' };
+      }
+      return isReportRead(args) ? report() : undefined;
+    });
 
     const result = await sandbox.run(request);
 
@@ -131,7 +163,7 @@ describe('DockerSandbox', () => {
       stdout: '3\n',
       stderr: '',
       exitCode: 0,
-      durationMs: 42,
+      metrics: { compileMs: 812, wallMs: 42, cpuMs: 40, memoryKb: 3300 },
     });
     expect(commands.calls.at(-1)?.args.slice(0, 2)).toEqual(['rm', '--force']);
   });
@@ -145,6 +177,7 @@ describe('DockerSandbox', () => {
 
     expect(result.status).toBe('compilation_error');
     expect(result.compileOutput).toContain("'x' was not declared");
+    expect(result.metrics).toEqual({ compileMs: 10, wallMs: null, cpuMs: null, memoryKb: null });
     expect(commands.find(isRun)).toBeUndefined();
   });
 
@@ -158,16 +191,20 @@ describe('DockerSandbox', () => {
   });
 
   it.each([
-    ['runtime_error', { exitCode: 139 }, ''],
-    ['output_limit_exceeded', { exitCode: null, outputLimitExceeded: true }, ''],
-    ['time_limit_exceeded', { exitCode: null, timedOut: true }, ''],
-    ['time_limit_exceeded', { exitCode: 137, durationMs: 3050 }, 'oom_kill 0'],
-    ['memory_limit_exceeded', { exitCode: 137, durationMs: 800 }, 'oom_kill 1'],
-    ['runtime_error', { exitCode: 137, durationMs: 50 }, 'oom_kill 0'],
-  ] as const)('classifies %s', async (status, runResult, oomCounters) => {
+    ['runtime_error', { exitCode: 1 }, { exitCode: 1 }, 'oom_kill 0'],
+    ['runtime_error', { exitCode: 139 }, undefined, 'oom_kill 0'],
+    ['output_limit_exceeded', { exitCode: null, outputLimitExceeded: true }, undefined, ''],
+    ['time_limit_exceeded', { exitCode: null, timedOut: true }, undefined, ''],
+    ['time_limit_exceeded', { exitCode: 137 }, { timedOut: true, exitCode: 137, signal: 9 }, 'oom_kill 0'],
+    ['memory_limit_exceeded', { exitCode: 137 }, { exitCode: 137, signal: 9 }, 'oom_kill 1'],
+    ['runtime_error', { exitCode: 137 }, { exitCode: 137, signal: 9 }, 'oom_kill 0'],
+  ] as const)('classifies %s', async (status, runResult, runReport, oomCounters) => {
     const { sandbox } = createSandbox((args) => {
       if (isRun(args)) {
         return runResult;
+      }
+      if (isReportRead(args)) {
+        return runReport ? report(runReport) : { exitCode: 1 };
       }
       if (isOomCheck(args)) {
         return { stdout: `oom 0\n${oomCounters}\n` };
@@ -178,6 +215,15 @@ describe('DockerSandbox', () => {
     const result = await sandbox.run(request);
 
     expect(result.status).toBe(status);
+  });
+
+  it('ignores malformed run reports', async () => {
+    const { sandbox } = createSandbox((args) => (isReportRead(args) ? { stdout: 'garbage' } : undefined));
+
+    const result = await sandbox.run(request);
+
+    expect(result.status).toBe('success');
+    expect(result.metrics.wallMs).toBeNull();
   });
 
   it('throws and still cleans up when the container cannot start', async () => {
@@ -203,6 +249,6 @@ describe('DockerSandbox', () => {
     await sandbox.prepare();
 
     expect(commands.find((args) => args[0] === 'rm')?.args).toEqual(['rm', '--force', 'abc', 'def']);
-    expect(commands.find((args) => args[0] === 'pull')?.args).toEqual(['pull', 'gcc:14']);
+    expect(commands.find((args) => args[0] === 'pull')?.args).toEqual(['pull', 'online-compiler-sandbox:gcc14']);
   });
 });

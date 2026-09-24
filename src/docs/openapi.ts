@@ -88,7 +88,28 @@ export const openApiDocument = {
           stdout: { type: 'string' },
           stderr: { type: 'string' },
           exitCode: { type: ['integer', 'null'] },
-          durationMs: { type: ['integer', 'null'] },
+          metrics: {
+            type: 'object',
+            properties: {
+              compileMs: { type: ['integer', 'null'] },
+              wallMs: { type: ['integer', 'null'] },
+              cpuMs: { type: ['integer', 'null'] },
+              memoryKb: { type: ['integer', 'null'] },
+            },
+          },
+        },
+      },
+      ExecutionLimits: {
+        type: 'object',
+        properties: {
+          standards: { type: 'array', items: { type: 'string', enum: CPP_STANDARDS } },
+          defaultStandard: { type: 'string', enum: CPP_STANDARDS },
+          compileTimeoutMs: { type: 'integer' },
+          runTimeoutMs: { type: 'integer' },
+          memoryMb: { type: 'integer' },
+          maxOutputBytes: { type: 'integer' },
+          maxSourceBytes: { type: 'integer' },
+          maxStdinBytes: { type: 'integer' },
         },
       },
       ErrorResponse: {
@@ -230,6 +251,15 @@ export const openApiDocument = {
           204: { description: 'Snippet deleted' },
           401: errorResponse('Not authenticated'),
           404: errorResponse('Snippet not found'),
+        },
+      },
+    },
+    '/executions/limits': {
+      get: {
+        tags: ['Executions'],
+        summary: 'Sandbox limits and supported C++ standards',
+        responses: {
+          200: dataResponse('Execution limits', { limits: ref('ExecutionLimits') }),
         },
       },
     },

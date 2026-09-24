@@ -8,7 +8,7 @@ export class FakeCodeRunner implements CodeRunner {
     stdout: 'hello\n',
     stderr: '',
     exitCode: 0,
-    durationMs: 5,
+    metrics: { compileMs: 400, wallMs: 5, cpuMs: 4, memoryKb: 3200 },
   };
   delayMs = 0;
 

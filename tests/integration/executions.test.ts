@@ -10,6 +10,20 @@ describe('executions API', () => {
     expect(runner.requests).toHaveLength(0);
   });
 
+  it('exposes sandbox limits without authentication', async () => {
+    const { app } = createTestApp({ SANDBOX_RUN_TIMEOUT_MS: '2500', SANDBOX_MEMORY_MB: '256' });
+
+    const response = await request(app).get('/api/executions/limits').expect(200);
+
+    expect(response.body.data.limits).toMatchObject({
+      defaultStandard: 'c++17',
+      runTimeoutMs: 2500,
+      memoryMb: 256,
+      maxSourceBytes: 65536,
+    });
+    expect(response.body.data.limits.standards).toContain('c++23');
+  });
+
   it('runs code with defaults applied', async () => {
     const { app, runner } = createTestApp();
     const user = await registerAndLogin(app);
