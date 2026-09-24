@@ -23,6 +23,7 @@ const REPORT_PATH = '/tmp/oc-report.json';
 const SANDBOX_USER = '65534:65534';
 const KILLED_EXIT_CODE = 137;
 const SIGKILL = 9;
+const MEMORY_EXHAUSTION_RATIO = 0.95;
 const HOST_TIMEOUT_GRACE_MS = 2000;
 const CONTAINER_LIFETIME_GRACE_SECONDS = 60;
 const DOCKER_COMMAND_TIMEOUT_MS = 30_000;
@@ -237,12 +238,16 @@ export class DockerSandbox implements CodeRunner {
       return 'output_limit_exceeded';
     }
 
-    if (execution.timedOut || report?.timedOut) {
-      return 'time_limit_exceeded';
+    if (execution.exitCode === 0 && !report?.timedOut) {
+      return 'success';
     }
 
-    if (execution.exitCode === 0) {
-      return 'success';
+    if (report && this.exhaustedMemory(report)) {
+      return 'memory_limit_exceeded';
+    }
+
+    if (execution.timedOut || report?.timedOut) {
+      return 'time_limit_exceeded';
     }
 
     const killed = report ? report.signal === SIGKILL : execution.exitCode === KILLED_EXIT_CODE;
@@ -252,6 +257,10 @@ export class DockerSandbox implements CodeRunner {
     }
 
     return 'runtime_error';
+  }
+
+  private exhaustedMemory(report: RunReport): boolean {
+    return report.maxRssKb >= this.config.memoryMb * 1024 * MEMORY_EXHAUSTION_RATIO;
   }
 
   private async wasOomKilled(container: string): Promise<boolean> {

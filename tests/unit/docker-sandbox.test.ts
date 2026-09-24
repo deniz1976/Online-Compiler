@@ -198,6 +198,9 @@ describe('DockerSandbox', () => {
     ['time_limit_exceeded', { exitCode: 137 }, { timedOut: true, exitCode: 137, signal: 9 }, 'oom_kill 0'],
     ['memory_limit_exceeded', { exitCode: 137 }, { exitCode: 137, signal: 9 }, 'oom_kill 1'],
     ['runtime_error', { exitCode: 137 }, { exitCode: 137, signal: 9 }, 'oom_kill 0'],
+    ['memory_limit_exceeded', { exitCode: 137 }, { timedOut: true, exitCode: 137, signal: 9, maxRssKb: 255 * 1024 }, ''],
+    ['memory_limit_exceeded', { exitCode: 134 }, { exitCode: 134, signal: 6, maxRssKb: 250 * 1024 }, ''],
+    ['time_limit_exceeded', { exitCode: 137 }, { timedOut: true, exitCode: 137, signal: 9, maxRssKb: 200 * 1024 }, ''],
   ] as const)('classifies %s', async (status, runResult, runReport, oomCounters) => {
     const { sandbox } = createSandbox((args) => {
       if (isRun(args)) {
