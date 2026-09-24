@@ -98,6 +98,20 @@ describe('auth API', () => {
     await request(app).get('/api/auth/me').set('Authorization', `Bearer ${foreignUser.token}`).expect(401);
   });
 
+  it('reports the current session without failing for anonymous visitors', async () => {
+    const { app } = createTestApp();
+    const user = await registerAndLogin(app, 'deniz');
+
+    await request(app).get('/api/auth/session').expect(200, { data: { user: null } });
+    await request(app)
+      .get('/api/auth/session')
+      .set('Authorization', 'Bearer not-a-token')
+      .expect(200, { data: { user: null } });
+
+    const session = await request(app).get('/api/auth/session').set('Cookie', user.cookie).expect(200);
+    expect(session.body.data.user).toMatchObject({ id: user.id, username: 'deniz' });
+  });
+
   it('clears the session cookie on logout', async () => {
     const { app } = createTestApp();
 

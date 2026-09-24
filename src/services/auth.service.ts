@@ -64,6 +64,11 @@ export class AuthService {
     return toPublicUser(user);
   }
 
+  async findProfile(userId: string): Promise<PublicUser | null> {
+    const user = await this.users.findById(userId);
+    return user ? toPublicUser(user) : null;
+  }
+
   private getDummyHash(): Promise<string> {
     this.dummyHash ??= this.hasher.hash('timing-equalization-password');
     return this.dummyHash;

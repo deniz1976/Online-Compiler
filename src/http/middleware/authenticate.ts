@@ -18,6 +18,22 @@ export function authenticate(tokens: TokenService): RequestHandler {
   };
 }
 
+export function identify(tokens: TokenService): RequestHandler {
+  return (req, _res, next) => {
+    const token = extractToken(req);
+
+    if (token) {
+      try {
+        req.auth = tokens.verify(token);
+      } catch {
+        req.auth = undefined;
+      }
+    }
+
+    next();
+  };
+}
+
 export function currentUserId(req: Request): string {
   if (!req.auth) {
     throw new UnauthorizedError();

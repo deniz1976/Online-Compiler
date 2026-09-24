@@ -184,6 +184,16 @@ export const openApiDocument = {
         responses: { 204: { description: 'Logged out' } },
       },
     },
+    '/auth/session': {
+      get: {
+        tags: ['Auth'],
+        summary: 'Current session, if any',
+        description: 'Always succeeds; user is null when the request is not authenticated.',
+        responses: {
+          200: dataResponse('Session', { user: { oneOf: [ref('User'), { type: 'null' }] } }),
+        },
+      },
+    },
     '/auth/me': {
       get: {
         tags: ['Auth'],

@@ -1,6 +1,6 @@
 import { Router, type CookieOptions } from 'express';
 import type { AppDependencies } from '../dependencies';
-import { AUTH_COOKIE, authenticate, currentUserId } from '../middleware/authenticate';
+import { AUTH_COOKIE, authenticate, currentUserId, identify } from '../middleware/authenticate';
 import { createRateLimiter } from '../middleware/rate-limit';
 import { loginSchema, registerSchema } from '../schemas/auth.schemas';
 import { parseBody } from '../validation';
@@ -37,6 +37,11 @@ export function createAuthRouter({ config, authService, tokenService }: AppDepen
   router.post('/logout', (_req, res) => {
     res.clearCookie(AUTH_COOKIE, cookieOptions);
     res.status(204).end();
+  });
+
+  router.get('/session', identify(tokenService), async (req, res) => {
+    const user = req.auth ? await authService.findProfile(req.auth.userId) : null;
+    res.status(200).json({ data: { user } });
   });
 
   router.get('/me', authenticate(tokenService), async (req, res) => {

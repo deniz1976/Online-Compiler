@@ -27,9 +27,9 @@ export function createApp(dependencies: AppDependencies): Express {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", 'cdnjs.cloudflare.com'],
-          styleSrc: ["'self'", "'unsafe-inline'", 'cdnjs.cloudflare.com', 'fonts.googleapis.com'],
-          fontSrc: ["'self'", 'cdnjs.cloudflare.com', 'fonts.gstatic.com'],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          fontSrc: ["'self'"],
           imgSrc: ["'self'", 'data:'],
           connectSrc: ["'self'"],
         },
